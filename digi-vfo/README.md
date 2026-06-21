@@ -197,6 +197,7 @@ If you want, I can sketch a specific example based on a particular TR‑7 schema
 
 [^29]: https://www.youtube.com/watch?v=865w7aN_Wcw
 
+[^30]: https://www.scribd.com/document/672536103/DDSVFO2-manual-V1
 
 
 
@@ -437,8 +438,5 @@ Given your level of comfort, the next thing I’d suggest is:
 [^29]: https://groups.io/g/DRAKE-RADIO/topic/drake_tr7_pa_problem/101304081
 
 [^30]: https://www.youtube.com/watch?v=765OPf8xiZ4
-
-
-[^30]: https://www.scribd.com/document/672536103/DDSVFO2-manual-V1
 
 
