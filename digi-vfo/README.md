@@ -197,6 +197,248 @@ If you want, I can sketch a specific example based on a particular TR‑7 schema
 
 [^29]: https://www.youtube.com/watch?v=865w7aN_Wcw
 
+
+
+
+
+Here’s a concrete, TR‑7–specific scheme for installing the Digi VFO in place of the PTO, with suggested points for LO injection, 10→5 V power, and TX sense. This assumes a “plain” TR‑7 (no DAFC/EL‑34) and the standard parent/power board and exciter layout.[^1][^2][^3]
+
+I’ll structure it as:
+
+- Injection at the PTO node (point Z)
+- 10→5 V supply pick‑off (point X)
+- TX sense pick‑off (point Y)
+- How to choose between TR‑7 RIT and Digi VFO RIT/split in practice
+
+All references are to the TR‑7 service manual and circuit diagram sets.[^2][^4][^1]
+
+***
+
+## 1. LO injection: replacing the PTO (point Z)
+
+### 1.1 Identify the PTO output and exciter input
+
+From the service manual:
+
+- The TR‑7 PTO is a 5.05–5.55 MHz permeability‑tuned oscillator that “provides a 5.05–5.55 MHz injection signal to the synthesizer.”[^1]
+- On the chassis/parent board diagram, the PTO output is brought to the parent board at the posts labeled “PTO” and from there to the exciter (synthesizer) board via a short coax or shielded lead.[^4][^1]
+
+On your rig:
+
+1. Remove the top cover and locate the PTO can and the coax/lead coming from it.
+2. Follow that lead to the parent board; you should find a small post or connector labeled “PTO” (as in the Elcon DAFC guide, which explicitly says, “The PTO connection is via a small caliber 50 Ohm coaxial cable RG‑316 from the posts with the PTO sign of the motherboard to the RF in of the EL‑34”).[^5]
+3. That PTO post is your **point Z**: the LO injection node.
+
+### 1.2 Disconnect original PTO and attach Digi VFO
+
+- Desolder or unplug the PTO coax from the PTO post on the parent board. Leave the board pad/post itself intact.
+- Optionally, unplug or cut PTO DC power if you want it fully dead; otherwise at least detune or disable it so it doesn’t oscillate.[^1]
+- Run a short piece of shielded cable or twisted pair from Digi VFO Clk0 output to the PTO post:
+    - Center conductor (or one conductor of the twisted pair) to PTO post (point Z).
+    - Shield/return to a nearby parent‑board ground pad or the same ground lug the PTO coax shield used.[^5][^1]
+
+Digi VFO now directly drives the exciter at the same node the PTO used, with the expected ~5 MHz range.[^6][^1]
+
+***
+
+## 2. 5 V supply for Digi VFO: tap +10 V at point X
+
+The TR‑7’s power board generates +10 V and +5 V rails; the +10 V rail is widely distributed and is exactly what the DAFC/PT0 stabilizer mods tap for their own logic.[^3][^5]
+
+### 2.1 Identify the +10 V rail
+
+From “Inside the TR‑7 – The Power Supply Board”:
+
+- The power board takes the main 13.8 V and produces +10 V, +5 V, +24 V, and –5 V. The +10 V and +5 V are internally regulated on that board.[^3]
+- The +10 V and +5 V rails leave the power board via its card‑edge connector and are distributed on the parent board; in some repair notes, +10 V and +5 V test points are mentioned on the parent board itself.[^7][^8]
+
+On your rig:
+
+1. Locate the power supply board (rear side, vertical board).
+2. With the service manual’s “Power Supply Board” schematic, identify the +10 V output pin on its card‑edge connector.[^4][^3]
+3. Either:
+    - Tap +10 V directly on the power board at a convenient pad, or
+    - Tap it on the parent board at a clearly labeled +10 V feed or test point (as done in the Elcon DAFC installation, which takes +10 V “from the respective motherboard PCB assembly of the TR‑7”).[^5]
+
+This tapped point is your **point X**.
+
+### 2.2 Add a local 5 V regulator
+
+Near the Digi VFO board:
+
+1. Mount a small linear regulator (78L05 or 7805) on a bit of perfboard or a tiny PCB.
+2. Wiring:
+    - Input: from point X (+10 V) via a short wire, optionally through a small fuse (e.g. 100 mA) or series resistor if you want protection.
+    - Output: to Digi VFO V+, ~5.0 V.[^9][^10][^6]
+    - Ground: to the same parent‑board ground area you used for the PTO shield / Digi VFO RF ground.[^3][^5]
+3. Decoupling:
+    - 0.1 µF and 10 µF caps at regulator input and output, close to the regulator.
+    - 0.1 µF at Digi VFO V+ pins as per QRP Labs guidance.[^10][^6]
+
+The +10→5 V conversion keeps Digi VFO cool and avoids loading any existing +5 V logic rails in the TR‑7.[^11][^6][^3]
+
+***
+
+## 3. TX sense: pick a keying line at point Y
+
+You want a signal that cleanly indicates TX vs RX and is easy to interface.
+
+The TR‑7 uses a “switching board” for T/R, and the circuit diagrams show a keying line and “FIXED Tx SW” control points.[^12][^2]
+
+### 3.1 Find a suitable TX/RX indicator
+
+From the TR‑7 circuit diagram PDF:
+
+- The “Switching Board Schematic” includes the PTT keying path and fixed TX switch; the “KEY” line and “FIXED Tx SW” notation appear in the TR‑7 chassis \& parent board schematic.[^2][^12]
+- Other notes (G4ALG mods etc.) reference a key line where applying +12 V keys the rig and where a series RC was added across the key jack to shape the waveform.[^12]
+
+A practical approach:
+
+1. Identify the **key line** that runs from the key jack / PTT logic to the driver/PA bias circuits on the “Switching Board Schematic.”[^2][^12]
+2. Choose a point where the voltage clearly goes high (≈+12 V or +10 V) in TX and low (0 V) in RX, and where loading it with a high‑impedance detector won’t disturb operation.
+3. Mark that node as **point Y**.
+
+If you prefer an LED‑driven line (e.g. TX indicator LED drive from the control board) that toggles between 0 and some DC level, you can equally use that as point Y.
+
+### 3.2 Build a simple interface to Digi VFO /TX
+
+Assuming point Y is a +10–12 V line that goes high on TX:
+
+- Digi VFO /TX expects a low (0 V) to indicate TX; it has (or you can add) a pull‑up to its internal 5 V.[^13][^14][^6]
+
+Use a small NPN transistor as an open‑collector inverter:
+
+1. Connect a 47–100 kΩ resistor from point Y to the base of a small NPN (e.g. 2N3904).
+2. Emitter to Digi VFO ground.
+3. Collector to Digi VFO /TX pin.
+4. Ensure Digi VFO /TX has a pull‑up to 5 V (either internal as documented, or add ~10 kΩ to 5 V at the Digi VFO end).[^14][^15][^13]
+
+Operation:
+
+- RX: point Y ≈ 0 V → transistor off → /TX pulled high → Digi VFO “RX mode.”
+- TX: point Y ≈ +10–12 V → base drive → transistor on → /TX pulled to 0 V → Digi VFO “TX mode.”[^13][^14]
+
+This loads the TR‑7 key line with only microamps (47–100 kΩ), so it’s invisible to the rig, and gives Digi VFO a clean logic indication.
+
+If point Y is low on TX and high on RX, you can either:
+
+- Swap the logic in the Digi VFO config (if supported), or
+- Use the transistor the other way round (different pull‑up/logic arrangement), but the principle—isolated open‑collector interface—remains the same.[^15][^16]
+
+***
+
+## 4. Switching between Digi VFO RIT/split and TR‑7 RIT in practice
+
+With:
+
+- LO injected at PTO post (Z),
+- Digi VFO powered from +10→5 V (X),
+- /TX sense via point Y,
+
+you can choose at the operating level which RIT/split “layer” you use.
+
+### 4.1 “TR‑7 RIT primary, Digi VFO split optional”
+
+- Leave TR‑7 RIT and XIT circuitry untouched.
+- Keep TR‑7 RIT centered most of the time.
+- Use Digi VFO for:
+    - Normal tuning (PTO replacement).
+    - Dual VFO A/B and split (thanks to /TX sense), for bigger TX/RX offsets.[^17][^18][^19][^20]
+
+In this mode:
+
+- Your main mental model stays “TR‑7 is the radio, Digi VFO is just a smarter PTO with split.”
+- When you press TR‑7 RIT and move its knob, the offset is applied inside the TR‑7 LO chain, regardless of whether Digi VFO is doing split; you can still use it for tiny corrections if you want.[^21][^22]
+
+
+### 4.2 “Digi VFO RIT/split primary, TR‑7 RIT idle”
+
+- Set TR‑7 RIT/XIT controls to electrical zero and leave them there.
+- Use Digi VFO’s own RIT, split, VFO A/B, and CW offset logic; /TX and /CW inputs let Digi VFO know when to apply TX offset vs RX offset.[^18][^20][^17][^13]
+- TR‑7 sees only whatever base LO Digi VFO chooses; its RIT is effectively unused, but still present and reversible.
+
+
+### 4.3 Hybrid “best of both”
+
+Because you didn’t cut any TR‑7 RIT wiring and you injected only at the PTO node:
+
+- You can mix small RIT tweaks via TR‑7 front‑panel RIT with big split offsets via Digi VFO dual VFOs.
+- You can also decide later to route the TR‑7’s RIT control voltage into Digi VFO (/RIT input or a spare analog input) and do the offset in Digi VFO firmware if you want a “DAFC‑like” integrated solution (similar in concept to what the DAFC module does by tapping the existing RIT circuit).[^22][^23][^5]
+
+***
+
+Given your level of comfort, the next thing I’d suggest is:
+
+- On your actual TR‑7, locate and label:
+    - PTO post on parent board (Z),
+    - A convenient +10 V pad or test point (X),
+    - A keying or TX‑LED line you like for point Y.
+- Then we can sanity‑check those specific node IDs against the circuit diagram PDFs (e.g. parent board node numbers, switching board connector pins), and tweak the suggestions if you’d prefer, say, to use the existing +5 V rail rather than adding a new regulator, or to derive TX sense from a different board.
+<span style="display:none">[^24][^25][^26][^27][^28][^29][^30]</span>
+
+<div align="center">⁂</div>
+
+[^1]: http://bee.mif.pg.gda.pl/ciasteczkowypotwor/%23ham_radio/Drake/Drake_TR-7_serv.pdf
+
+[^2]: https://www.wb4hfn.com/DRAKE/DrakeManuals/PDFDOCS/TR7-Circuit-Diagrams.pdf
+
+[^3]: https://www.wb4hfn.com/DRAKE/DrakeArticles/InsideTheTR7/Inside_The_TR7-07.htm
+
+[^4]: https://www.wb4hfn.com/DRAKE/DrakeManuals/PDFDOCS/TR-7_Service_manual.pdf
+
+[^5]: https://shop.elcon.ch/media/docs/drake-tr-7-ii-installation-guide_v1.0a_en.pdf
+
+[^6]: https://qrp-labs.com/digivfo.html
+
+[^7]: https://groups.io/g/DRAKE-RADIO/topic/tr7_with_low_power_on_15_and/102702614
+
+[^8]: https://waves-vagues.dfo-mpo.gc.ca/Library/49392.pdf
+
+[^9]: http://shop.qrp-labs.com/digivfo
+
+[^10]: https://www.qrp-labs.com/images/vfo/assembly_vfo.pdf
+
+[^11]: https://groups.io/g/DRAKE-RADIO/topic/tr_7a_power_supply_board/69903048
+
+[^12]: http://www.zerobeat.net/drakelist/tr7moremods.html
+
+[^13]: https://qrp-labs.com/images/digivfo/DigiVFO_1_00.pdf
+
+[^14]: https://gist.github.com/la3pna/7f3ef8c9c75e035fce02
+
+[^15]: http://www.qrp.gr/supervfo/index.htm
+
+[^16]: https://www.embeddedrelated.com/thread/7792/microcontroller-with-5v-supply-to-control-3-3v-power
+
+[^17]: https://qrp-labs.com/digivfo
+
+[^18]: https://manuals.plus/m/4667d2bde8203ce2231f216d6194c6a79c4c6e36323f0db9a599c0be76011fa5
+
+[^19]: https://itshamradio.com/sbitx-guide-book/split-operation/
+
+[^20]: https://id.scribd.com/document/54383893/dds-2v0
+
+[^21]: https://dk4sx.darc.de/tr7neu.htm
+
+[^22]: http://www.dl7maj.de/DAFC-deLuxe_en.pdf
+
+[^23]: https://s873ba685ce580070.jimcontent.com/download/version/1310210400/module/4320762251/name/dds-x_v1_6.pdf
+
+[^24]: http://www.bigskyspaces.com/w7gj/station.htm
+
+[^25]: https://es.scribd.com/document/586307158/DRAKE-TR-7-Service-Manual
+
+[^26]: https://lse.se/hubfs/3179-81-F-Jotron-TR7750.pdf?hsLang=en
+
+[^27]: https://www.florian-anwander.de/yahoo/tr-707/1297.html
+
+[^28]: https://www.youtube.com/watch?v=WQtd6DDfOJA
+
+[^29]: https://groups.io/g/DRAKE-RADIO/topic/drake_tr7_pa_problem/101304081
+
+[^30]: https://www.youtube.com/watch?v=765OPf8xiZ4
+
+
 [^30]: https://www.scribd.com/document/672536103/DDSVFO2-manual-V1
 
 
